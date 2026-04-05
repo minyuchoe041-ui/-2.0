@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시파시파</title>
+    <style>
+        :root { --point: #FFD2D5; --bg: #F4EEEE; --text: #333; --card: #ffffff; --item-bg: #f9f9f9; --border: #eee; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; transition: 0.3s; margin: 0; padding: 20px; text-align: center; }
+        .container { background: var(--card); max-width: 600px; margin: 0 auto; padding: 30px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: left; display: none; }
+
+        /* 🔐 로그인 */
+        #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: var(--card); padding: 40px; border-radius: 30px; text-align: center; width: 85%; max-width: 350px; border: 2px solid var(--point); }
+
+        /* 🎨 설정 */
+        .settings { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .color-picker { display: flex; gap: 12px; }
+        .color-dot { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; }
+        .color-dot.active::after { content: '✓'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 14px; font-weight: bold; }
+        .mode-toggle { cursor: pointer; padding: 6px 16px; border-radius: 20px; background: var(--point); color: #fff; font-weight: bold; font-size: 12px; border: none; }
+
+        h1 { text-align: center; margin: 10px 0; font-size: 26px; }
+        #dday-display { text-align: center; font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 20px; padding: 12px; border-radius: 15px; background: var(--point); }
+
+        h3 { border-left: 5px solid var(--point); padding-left: 10px; margin-top: 30px; font-size: 16px; }
+        .grid { display: flex; flex-wrap: wrap; gap: 8px; background: var(--item-bg); padding: 15px; border-radius: 18px; margin-top: 10px; min-height: 40px; }
+        .item { background: var(--card); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 13px; display: flex; align-items: center; color: var(--text); cursor: pointer; }
+        .item.disabled { opacity: 0.3; pointer-events: none; background: #ccc; }
+        
+        .input-group { display: flex; gap: 8px; margin-top: 10px; }
+        input[type="text"], input[type="password"], input[type="date"] { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); box-sizing: border-box; }
+        .add-sub-btn { width: 80px; background: var(--text); color: var(--card); border: none; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        .main-btn { width: 100%; padding: 18px; border-radius: 20px; border: none; background: var(--point); color: #fff; font-size: 17px; font-weight: 800; cursor: pointer; margin-top: 20px; }
+
+        ul { padding: 0; list-style: none; margin-top: 30px; }
+        .plan-card { background: var(--card); margin-bottom: 25px; padding: 25px; border-radius: 28px; border: 1px solid var(--border); border-left: 12px solid var(--point); text-align: left; position: relative; }
+        .done-msg { display: none; color: var(--point); font-weight: 900; font-size: 18px; text-align: center; margin-top: 15px; border-top: 2px solid var(--point); padding-top: 10px; }
+        
+        .check-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 16px; font-weight: 700; cursor: pointer; }
+        .check-row input { width: 18px; height: 18px; accent-color: var(--point); }
+        .strikethrough { text-decoration: line-through; opacity: 0.4; }
+        .del-btn { margin-left: auto; background: #ffefef; border: none; color: #ff6b6b; cursor: pointer; font-size: 11px; padding: 4px 8px; border-radius: 6px; }
+
+        .memo-box { margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border); }
+        .tag { padding: 4px 8px; border-radius: 6px; font-size: 11px; background: var(--point); color: #fff; margin-left: 10px; }
+    </style>
+</head>
+<body onload="initApp()">
+
+<div id="loginOverlay">
+    <div class="login-box">
+        <h2>시파시파 🔐</h2>
+        <input type="text" id="userId" placeholder="아이디">
+        <input type="password" id="userPw" placeholder="비밀번호">
+        <button class="main-btn" onclick="handleAuth()">접속하기</button>
+    </div>
+</div>
+
+<div class="container" id="mainContainer">
+    <div class="settings">
+        <div class="color-picker" id="colorPicker"></div>
+        <button class="mode-toggle" onclick="toggleDarkMode()">모드 전환</button>
+    </div>
+    <h1>시파시파</h1>
+    <div id="dday-display">날짜를 설정해주세요</div>
+
+    <h3>1️⃣ 과목 직접 추가</h3>
+    <div class="input-group">
+        <input type="text" id="newSubInput" placeholder="과목 입력 후 추가">
+        <button class="add-sub-btn" onclick="addSubject()">추가</button>
+    </div>
+    <div id="subjectGrid" class="grid"></div>
+
+    <h3>2️⃣ 중요 과목 (최대 2개)</h3>
+    <div id="importantGrid" class="grid"></div>
+
+    <h3>3️⃣ 시험 일정 설정</h3>
+    <div id="examSchedule">
+        <div class="day-box" data-day="1" style="padding:15px; background:var(--item-bg); border-radius:20px; margin-bottom:10px;">
+            <label style="font-size:12px; font-weight:bold;">📅 1일차 시험일 (기준)</label>
+            <input type="date" class="exam-date" onchange="updateDDay()">
+            <div class="grid exam-subs-container"></div>
+        </div>
+        <div id="extraDays"></div>
+    </div>
+    
+    <button class="main-btn" onclick="generatePlan()">🚀 계획표 생성</button>
+    <ul id="planResult"></ul>
+    <button class="main-btn" onclick="resetAll()" style="background:#ff6b6b; font-size:11px; margin-top:50px;">♻️ 모든 데이터 초기화</button>
+</div>
+
+<script>
+    let userSubs = [];
+    const themes = [
+        { l: ['#FFD2D5', '#F4EEEE'], d: ['#DE9CA0', '#4A3F3F'] },
+        { l: ['#FFECC2', '#F4EEEE'], d: ['#A88535', '#4A3F3F'] },
+        { l: ['#B1C5A4', '#F4EEEE'], d: ['#5F7054', '#4A3F3F'] },
+        { l: ['#4A3F3F', '#F4EEEE'], d: ['#6774A9', '#4A3F3F'] },
+        { l: ['#CDBDBD', '#CDBDBD'], d: ['#746363', '#4A3F3F'] }
+    ];
+    let currentTheme = 0, isDark = false;
+
+    function initApp() {
+        currentTheme = parseInt(localStorage.getItem('sipa_theme') || 0);
+        isDark = localStorage.getItem('sipa_mode') === 'dark';
+        applyTheme(); renderColorPicker();
+        if(localStorage.getItem('sipa_isLoggedIn') === 'true') enterApp();
+        const extra = document.getElementById('extraDays');
+        for(let i=2; i<=4; i++) {
+            extra.innerHTML += `
+                <div class="day-box" data-day="${i}" style="padding:15px; background:var(--item-bg); border-radius:20px; margin-top:10px;">
+                    <label style="font-size:12px;"><input type="checkbox" class="day-enable" onchange="toggleDayBox(this)"> 📅 ${i}일차 시험 추가</label>
+                    <input type="date" class="exam-date" disabled>
+                    <div class="grid exam-subs-container disabled" style="opacity:0.3; pointer-events:none;"></div>
+                </div>`;
+        }
+        loadSavedData();
+    }
+
+    function handleAuth() {
+        const id = document.getElementById('userId').value;
+        const pw = document.getElementById('userPw').value;
+        const saved = JSON.parse(localStorage.getItem('sipa_user')) || {id: "미뉴", pw: "1111"};
+        if(!id || !pw) return alert("입력해!");
+        if(id === saved.id && pw === saved.pw) {
+            localStorage.setItem('sipa_user', JSON.stringify(saved));
+            enterApp();
+        } else alert("틀렸어!");
+    }
+
+    function enterApp() {
+        localStorage.setItem('sipa_isLoggedIn', 'true');
+        document.getElementById('loginOverlay').style.display='none';
+        document.getElementById('mainContainer').style.display='block';
+    }
+
+    function applyTheme() {
+        const c = isDark ? themes[currentTheme].d : themes[currentTheme].l;
+        document.documentElement.style.setProperty('--point', c[0]);
+        document.documentElement.style.setProperty('--bg', c[1]);
+        document.documentElement.style.setProperty('--text', isDark ? '#fff' : '#333');
+        document.documentElement.style.setProperty('--card', isDark ? '#333' : '#fff');
+        document.documentElement.style.setProperty('--item-bg', isDark ? '#444' : '#f9f9f9');
+        document.documentElement.style.setProperty('--border', isDark ? '#555' : '#eee');
+        localStorage.setItem('sipa_theme', currentTheme); localStorage.setItem('sipa_mode', isDark?'dark':'light');
+    }
+
+    function renderColorPicker() {
+        const cp = document.getElementById('colorPicker'); cp.innerHTML = '';
+        themes.forEach((t, i) => {
+            const dot = document.createElement('div');
+            dot.className = `color-dot ${currentTheme === i ? 'active' : ''}`;
+            dot.style.backgroundColor = isDark ? t.d[0] : t.l[0];
+            dot.onclick = () => { currentTheme = i; applyTheme(); renderColorPicker(); };
+            cp.appendChild(dot);
+        });
+    }
+
+    function toggleDarkMode() { isDark = !isDark; applyTheme(); renderColorPicker(); }
+
+    function addSubject() {
+        const val = document.getElementById('newSubInput').value.trim();
+        if(!val || userSubs.includes(val)) return;
+        userSubs.push(val);
+        localStorage.setItem('sipa_subs', JSON.stringify(userSubs));
+        document.getElementById('newSubInput').value = '';
+        renderSubjectGrids();
+    }
+
+    function removeSubject(s) {
+        userSubs = userSubs.filter(sub => sub !== s);
+        localStorage.setItem('sipa_subs', JSON.stringify(userSubs));
+        renderSubjectGrids();
+    }
+
+    function renderSubjectGrids() {
+        const grid = document.getElementById('subjectGrid');
+        const prevMain = Array.from(document.querySelectorAll('.sub-check:checked')).map(c => c.value);
+        grid.innerHTML = '';
+        userSubs.forEach(s => {
+            grid.innerHTML += `<label class="item"><input type="checkbox" class="sub-check" value="${s}" ${prevMain.includes(s)?'checked':''} onchange="syncGrids()"> ${s} <span style="margin-left:5px; color:red" onclick="removeSubject('${s}')">×</span></label>`;
+        });
+        syncGrids();
+    }
+
+    function syncGrids() {
+        const selected = Array.from(document.querySelectorAll('.sub-check:checked')).map(c => c.value);
+        const currentImp = Array.from(document.querySelectorAll('.imp-check:checked')).map(c => c.value);
+        const impGrid = document.getElementById('importantGrid');
+        impGrid.innerHTML = '';
+        selected.forEach(s => impGrid.innerHTML += `<label class="item"><input type="checkbox" class="imp-check" value="${s}" ${currentImp.includes(s)?'checked':''} onchange="limitImp(this)"> ${s}</label>`);
+        updateExamGrids(selected);
+    }
+
+    function updateExamGrids(selected) {
+        const dayBoxes = document.querySelectorAll('.day-box');
+        let allUsed = [];
+        dayBoxes.forEach(box => {
+            const container = box.querySelector('.exam-subs-container');
+            const prevChecked = Array.from(container.querySelectorAll('.ex-sub-check:checked')).map(c => c.value);
+            container.innerHTML = '';
+            selected.forEach(s => {
+                const isTaken = allUsed.includes(s);
+                const isChecked = prevChecked.includes(s);
+                if(isChecked) allUsed.push(s);
+                container.innerHTML += `<label class="item ${isTaken && !isChecked ? 'disabled' : ''}"><input type="checkbox" class="ex-sub-check" value="${s}" ${isChecked?'checked':''} onchange="syncGrids()"> ${s}</label>`;
+            });
+        });
+    }
+
+    function toggleDayBox(chk) {
+        const box = chk.closest('.day-box');
+        const d = box.querySelector('.exam-date'), g = box.querySelector('.exam-subs-container');
+        d.disabled = !chk.checked;
+        if(!chk.checked) { d.value = ''; g.querySelectorAll('.ex-sub-check').forEach(c => c.checked = false); }
+        g.style.opacity = chk.checked ? "1" : "0.3";
+        g.style.pointerEvents = chk.checked ? "auto" : "none";
+        syncGrids();
+    }
+
+    function limitImp(c) { if(document.querySelectorAll('.imp-check:checked').length > 2) { alert("2개까지!"); c.checked=false; } }
+
+    function updateDDay() {
+        const first = document.querySelector('.exam-date').value;
+        if(!first) return;
+        const diff = Math.ceil((new Date(first) - new Date().setHours(0,0,0,0)) / (1000*60*60*24));
+        document.getElementById('dday-display').innerText = diff >= 0 ? `📅 첫 시험까지 D-${diff}` : "시험 중";
+    }
+
+    function generatePlan() {
+        const sel = Array.from(document.querySelectorAll('.sub-check:checked')).map(c => c.value);
+        if(!sel.length) return alert("과목 골라!");
+        const exDates = document.querySelectorAll('.exam-date'), exGrids = document.querySelectorAll('.exam-subs-container');
+        let plan = [], firstEx = null, lastEx = null, allEx = [];
+        exDates.forEach((input, i) => {
+            if(!input.disabled && input.value) {
+                const d = new Date(input.value); d.setHours(0,0,0,0);
+                if(!firstEx || d < firstEx) firstEx = d;
+                if(!lastEx || d > lastEx) lastEx = d;
+                const s = Array.from(exGrids[i].querySelectorAll('.ex-sub-check:checked')).map(c => c.value);
+                allEx.push(...s);
+                const prev = new Date(d); prev.setDate(d.getDate()-1);
+                plan.push({ date: prev.toDateString(), subs: s.map(n => ({name:n, done:false})), type:'exam', memos:[] });
+            }
+        });
+        if(!lastEx) return alert("시험 정보 입력해!");
+        let cur = new Date(); cur.setHours(0,0,0,0);
+        let idx = 0;
+        while(cur < lastEx) {
+            const ds = cur.toDateString();
+            if(!plan.find(p => p.date === ds)) {
+                const isW = (cur.getDay() === 0 || cur.getDay() === 6);
+                const isSP = (isW && cur < firstEx && (firstEx - cur) <= 604800000);
+                let daily = isSP ? [...new Set(allEx)] : [sel[idx++ % sel.length], sel[idx++ % sel.length]];
+                plan.push({ date: ds, subs: [...new Set(daily)].map(n => ({name:n, done:false})), type: isSP?'weekend':'normal', memos:[] });
+            }
+            cur.setDate(cur.getDate()+1);
+        }
+        plan.sort((a,b) => new Date(a.date) - new Date(b.date));
+        localStorage.setItem('sipa_plan', JSON.stringify(plan));
+        renderPlan(plan);
+    }
+
+    function renderPlan(data) {
+        const ul = document.getElementById('planResult'); ul.innerHTML = '';
+        data.forEach((p, di) => {
+            const li = document.createElement('li'); li.className = 'plan-card';
+            const dStr = new Date(p.date).toLocaleDateString('ko-KR', {month:'long', day:'numeric', weekday:'short'});
+            const tag = p.type==='exam'?'<span class="tag">시험전날 🔥</span>':(p.type==='weekend'?'<span class="tag" style="background:#856404">주말특공 ⚡</span>':'');
+            li.innerHTML = `<span style="font-weight:800; font-size:15px;">📅 ${dStr} ${tag}</span>
+                <div style="margin-top:15px;">${p.subs.map((s, si) => `<div class="check-row" onclick="toggleSub(${di}, ${si})"><input type="checkbox" ${s.done?'checked':''}> <span class="${s.done?'strikethrough':''}">${s.name}</span></div>`).join('')}</div>
+                <div class="memo-box"><div id="m-list-${di}">${p.memos.map((m, mi) => `<div class="check-row" style="font-size:13px"><input type="checkbox" ${m.done?'checked':''} onclick="toggleMemo(event, ${di}, ${mi})"> <span class="${m.done?'strikethrough':''}">${m.text}</span> <button class="del-btn" onclick="delMemo(event, ${di}, ${mi})">삭제</button></div>`).join('')}</div>
+                <div class="memo-input-group"><input type="text" id="m-in-${di}" placeholder="추가 공부..."><button class="add-sub-btn" style="width:50px" onclick="addMemo(${di})">추가</button></div></div>
+                <div class="done-msg" id="done-${di}">오늘의 공부 끝!! 🎉</div>`;
+            ul.appendChild(li); checkDayDone(di);
+        });
+        updateDDay();
+    }
+
+    function checkDayDone(di) {
+        const plan = JSON.parse(localStorage.getItem('sipa_plan'));
+        const day = plan[di];
+        const allDone = (day.subs.length > 0 || day.memos.length > 0) && day.subs.every(s => s.done) && day.memos.every(m => m.done);
+        document.getElementById(`done-${di}`).style.display = allDone ? 'block' : 'none';
+    }
+
+    function toggleSub(di, si) { let d=JSON.parse(localStorage.getItem('sipa_plan')); d[di].subs[si].done=!d[di].subs[si].done; localStorage.setItem('sipa_plan', JSON.stringify(d)); renderPlan(d); }
+    function addMemo(di) { const input=document.getElementById(`m-in-${di}`); if(!input.value) return; let d=JSON.parse(localStorage.getItem('sipa_plan')); d[di].memos.push({text: input.value, done: false}); localStorage.setItem('sipa_plan', JSON.stringify(d)); renderPlan(d); }
+    function toggleMemo(e, di, mi) { e.stopPropagation(); let d=JSON.parse(localStorage.getItem('sipa_plan')); d[di].memos[mi].done=!d[di].memos[mi].done; localStorage.setItem('sipa_plan', JSON.stringify(d)); renderPlan(d); }
+    function delMemo(e, di, mi) { e.stopPropagation(); let d=JSON.parse(localStorage.getItem('sipa_plan')); d[di].memos.splice(mi, 1); localStorage.setItem('sipa_plan', JSON.stringify(d)); renderPlan(d); }
+    function loadSavedData() { const s = localStorage.getItem('sipa_subs'); if(s) { userSubs = JSON.parse(s); renderSubjectGrids(); } const p = localStorage.getItem('sipa_plan'); if(p) renderPlan(JSON.parse(p)); }
+    function resetAll() { if(confirm("싹 다 지울까?")) { localStorage.clear(); location.reload(); } }
+</script>
+</body>
+</html>
